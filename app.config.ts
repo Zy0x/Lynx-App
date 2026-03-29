@@ -28,11 +28,10 @@ const schemeFromBundleId = `manus${timestamp}`;
 
 const env = {
   // App branding - update these values directly (do not use env vars)
-   appName: "Device Info",
-  appSlug: "android-info-app",
-  // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
-  // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663491320332/2dHePstb6bG7rEY7dzDpc9/icon-PRguqyNcP4npAodzzoMfm3.png",
+   appName: "Lynx",
+  appSlug: "lynx-app",
+  // S3 URL of the app logo
+  logoUrl: "",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
@@ -41,12 +40,14 @@ const env = {
 const config: ExpoConfig = {
   name: env.appName,
   slug: env.appSlug,
-  version: "1.0.0",
+  version: "1.0.1",
+  description: "Modern device information app with root access",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
+  runtimeVersion: "1.0.1",
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
@@ -63,8 +64,10 @@ const config: ExpoConfig = {
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
+    usesCleartextTraffic: true,
     package: env.androidPackage,
-    permissions: ["POST_NOTIFICATIONS"],
+    supportsRtl: false,
+    permissions: ["POST_NOTIFICATIONS", "android.permission.ACCESS_SUPERUSER", "android.permission.WRITE_SECURE_SETTINGS", "android.permission.WRITE_SETTINGS"],
     intentFilters: [
       {
         action: "VIEW",
@@ -117,6 +120,7 @@ const config: ExpoConfig = {
         android: {
           buildArchs: ["armeabi-v7a", "arm64-v8a"],
           minSdkVersion: 24,
+          usesCleartextTraffic: true,
         },
       },
     ],

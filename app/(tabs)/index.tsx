@@ -1,108 +1,211 @@
-import { ScrollView, Text, View, TouchableOpacity, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import { ScrollView, Text, View, Platform } from 'react-native';
+import { useState, useEffect } from 'react';
 import { ScreenContainer } from '@/components/screen-container';
-import { AnimatedMetricCard } from '@/components/animated-metric-card';
-import { useDeviceInfo } from '@/hooks/use-device-info';
-import { useColors } from '@/hooks/use-colors';
+import { FloatingNavbar } from '@/components/floating-navbar';
+import { getNativeDeviceInfo, checkIfDeviceIsRooted } from '@/lib/native-device-info';
+import * as Device from 'expo-device';
+import * as Battery from 'expo-battery';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
-export default function HomeScreen() {
-  const router = useRouter();
-  const colors = useColors();
-  const deviceInfo = useDeviceInfo();
+type TabType = 'dashboard' | 'settings' | 'info';
 
-  const sections = [
-    { name: 'Device', icon: 'smartphone', color: 'bg-blue-500', route: 'device' },
-    { name: 'CPU', icon: 'memory', color: 'bg-purple-500', route: 'cpu' },
-    { name: 'Memory', icon: 'storage', color: 'bg-orange-500', route: 'memory' },
-    { name: 'Storage', icon: 'sd-storage', color: 'bg-red-500', route: 'storage' },
-    { name: 'Battery', icon: 'battery-full', color: 'bg-green-500', route: 'battery' },
-    { name: 'Display', icon: 'monitor', color: 'bg-indigo-500', route: 'display' },
-    { name: 'Network', icon: 'wifi', color: 'bg-cyan-500', route: 'network' },
-    { name: 'Sensors', icon: 'sensors', color: 'bg-pink-500', route: 'sensors' },
-  ];
+interface DeviceData {
+  model: string;
+  manufacturer: string;
+  kernel: string;
+  androidVersion: string;
+  buildNumber: string;
+  securityPatch: string;
+}
+
+export default function HomeScreen() {
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [isRooted, setIsRooted] = useState(false);
+  const [deviceData, setDeviceData] = useState<DeviceData>({
+    model: 'Loading...',
+    manufacturer: 'Loading...',
+    kernel: 'Loading...',
+    androidVersion: 'Loading...',
+    buildNumber: 'Loading...',
+    securityPatch: 'Loading...',
+  });
+  const [batteryLevel, setBatteryLevel] = useState(0);
+
+  useEffect(() => {
+    initializeApp();
+  }, []);
+
+  const initializeApp = async () => {
+    try {
+      // Check if device is rooted
+      const rooted = await checkIfDeviceIsRooted();
+      setIsRooted(rooted);
+
+      // Get device info
+      const info = await getNativeDeviceInfo();
+      setDeviceData({
+        model: info.model,
+        manufacturer: info.manufacturer,
+        kernel: info.kernel,
+        androidVersion: info.androidVersion,
+        buildNumber: info.buildNumber,
+        securityPatch: info.securityPatch,
+      });
+
+      // Get battery level
+      if (Platform.OS === 'android') {
+        const level = await Battery.getBatteryLevelAsync();
+        setBatteryLevel(Math.round(level * 100));
+      }
+    } catch (error) {
+      console.error('Error initializing app:', error);
+    }
+  };
 
   return (
-    <ScreenContainer className="p-4">
+    <ScreenContainer className="flex-1 pb-32">
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-        <View className="gap-6 pb-8">
-          {/* Header */}
-          <View className="gap-2">
-            <Text className="text-4xl font-bold text-foreground">Device Info</Text>
-            <Text className="text-base text-muted">{deviceInfo.deviceModel}</Text>
-          </View>
-
-          {/* Quick Stats */}
-          <View className="gap-3">
-            <Text className="text-lg font-semibold text-foreground">Quick Stats</Text>
-            <View className="gap-3">
-              <AnimatedMetricCard
-                label="Battery"
-                value={deviceInfo.batteryLevel}
-                unit="%"
-                color="bg-green-500"
-                delay={0}
-              />
-              <AnimatedMetricCard
-                label="RAM Available"
-                value={Math.round(deviceInfo.availableMemory / 1024 / 1024 / 1024)}
-                unit=" GB"
-                color="bg-blue-500"
-                delay={100}
-              />
-              <AnimatedMetricCard
-                label="Screen"
-                value={`${deviceInfo.screenWidth}x${deviceInfo.screenHeight}`}
-                color="bg-purple-500"
-                delay={200}
-              />
-            </View>
-          </View>
-
-          {/* Device Info Sections */}
-          <View className="gap-3">
-            <Text className="text-lg font-semibold text-foreground">Information</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {sections.map((section, index) => (
-                <Pressable
-                  key={section.name}
-                  onPress={() => router.push(section.route as any)}
-                  style={({ pressed }) => ({
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                  className="flex-1 min-w-[calc(50%-4px)]"
-                >
-                  <View className={`rounded-xl p-4 items-center gap-2 ${section.color}`}>
-                    <MaterialIcons name={section.icon as any} size={28} color="white" />
-                    <Text className="text-sm font-semibold text-white text-center">
-                      {section.name}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-
-          {/* Device Details Card */}
-          <View className="bg-surface rounded-2xl p-4 gap-3">
-            <Text className="text-lg font-semibold text-foreground">System</Text>
-            <View className="gap-2">
-              <DetailRow label="OS" value={`${deviceInfo.osName} ${deviceInfo.osVersion}`} />
-              <DetailRow label="Brand" value={deviceInfo.deviceBrand} />
-              <DetailRow label="Model" value={deviceInfo.deviceModel} />
-            </View>
-          </View>
+        {/* Header */}
+        <View className="gap-2 mb-6">
+          <Text className="text-4xl font-bold text-foreground">Lynx</Text>
+          <Text className="text-base text-muted">
+            {isRooted ? '🔓 Root Access' : '🔒 No Root'}
+          </Text>
         </View>
+
+        {/* Dashboard Tab */}
+        {activeTab === 'dashboard' && (
+          <View className="gap-4">
+            <Text className="text-2xl font-bold text-foreground mb-2">Dashboard</Text>
+
+            {/* Device Card */}
+            <View className="bg-primary rounded-2xl p-6 gap-3">
+              <View className="flex-row items-center gap-2">
+                <MaterialIcons name="smartphone" size={28} color="white" />
+                <Text className="text-lg font-semibold text-white">Device</Text>
+              </View>
+              <Text className="text-3xl font-bold text-white">{deviceData.model}</Text>
+              <Text className="text-sm text-white/80">{deviceData.manufacturer}</Text>
+            </View>
+
+            {/* Kernel Card */}
+            <View className="bg-blue-500 rounded-2xl p-6 gap-3">
+              <View className="flex-row items-center gap-2">
+                <MaterialIcons name="memory" size={28} color="white" />
+                <Text className="text-lg font-semibold text-white">Kernel</Text>
+              </View>
+              <Text className="text-2xl font-bold text-white">{deviceData.kernel}</Text>
+            </View>
+
+            {/* Android Version Card */}
+            <View className="bg-green-500 rounded-2xl p-6 gap-3">
+              <View className="flex-row items-center gap-2">
+                <MaterialIcons name="android" size={28} color="white" />
+                <Text className="text-lg font-semibold text-white">Android</Text>
+              </View>
+              <Text className="text-3xl font-bold text-white">{deviceData.androidVersion}</Text>
+            </View>
+
+            {/* Battery Card */}
+            <View className="bg-orange-500 rounded-2xl p-6 gap-3">
+              <View className="flex-row items-center gap-2">
+                <MaterialIcons name="battery-full" size={28} color="white" />
+                <Text className="text-lg font-semibold text-white">Battery</Text>
+              </View>
+              <Text className="text-3xl font-bold text-white">{batteryLevel}%</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Info Tab */}
+        {activeTab === 'info' && (
+          <View className="gap-4">
+            <Text className="text-2xl font-bold text-foreground mb-2">Device Information</Text>
+
+            <View className="bg-surface rounded-2xl p-4 gap-3">
+              <InfoRow label="Model" value={deviceData.model} />
+              <InfoRow label="Manufacturer" value={deviceData.manufacturer} />
+              <InfoRow label="Android Version" value={deviceData.androidVersion} />
+              <InfoRow label="Build Number" value={deviceData.buildNumber} />
+              <InfoRow label="Security Patch" value={deviceData.securityPatch} />
+              <InfoRow label="Kernel" value={deviceData.kernel} />
+              <InfoRow label="Root Status" value={isRooted ? 'Rooted ✓' : 'Not Rooted'} />
+            </View>
+          </View>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <View className="gap-4">
+            <Text className="text-2xl font-bold text-foreground mb-2">Settings</Text>
+
+            <View className="bg-surface rounded-2xl p-4 gap-4">
+              <SettingRow
+                icon="security"
+                label="Root Access"
+                value={isRooted ? 'Enabled' : 'Disabled'}
+                color={isRooted ? 'text-green-500' : 'text-red-500'}
+              />
+              <SettingRow
+                icon="info"
+                label="App Version"
+                value="1.0.1"
+              />
+              <SettingRow
+                icon="build"
+                label="Build Type"
+                value="Release"
+              />
+              <SettingRow
+                icon="update"
+                label="Last Updated"
+                value="Today"
+              />
+            </View>
+
+            <View className="bg-blue-500/10 rounded-2xl p-4 gap-2 border border-blue-500/30">
+              <Text className="text-sm font-semibold text-blue-500">ℹ️ Note</Text>
+              <Text className="text-xs text-blue-500/80">
+                This app requires root access to retrieve accurate kernel and system information. Please grant root permission when prompted.
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
+
+      {/* Floating Navbar */}
+      <FloatingNavbar activeTab={activeTab} onTabChange={setActiveTab} />
     </ScreenContainer>
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <View className="flex-row justify-between items-center py-2 border-b border-border">
-      <Text className="text-sm text-muted">{label}</Text>
-      <Text className="text-sm font-medium text-foreground">{value}</Text>
+    <View className="flex-row justify-between items-center py-3 border-b border-border">
+      <Text className="text-sm text-muted font-medium">{label}</Text>
+      <Text className="text-sm font-semibold text-foreground">{value}</Text>
+    </View>
+  );
+}
+
+function SettingRow({
+  icon,
+  label,
+  value,
+  color = 'text-foreground',
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  color?: string;
+}) {
+  return (
+    <View className="flex-row items-center justify-between py-3">
+      <View className="flex-row items-center gap-3 flex-1">
+        <MaterialIcons name={icon as any} size={24} color="#0a7ea4" />
+        <Text className="text-base font-medium text-foreground">{label}</Text>
+      </View>
+      <Text className={`text-sm font-semibold ${color}`}>{value}</Text>
     </View>
   );
 }
